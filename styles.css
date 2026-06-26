@@ -146,6 +146,34 @@ nav a {
     color: #eb5050;
 }
 
+.content pre {
+    background-color: #1e1e2a;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    line-height: 1.5;
+    margin: 1.25rem 0;
+}
+
+.content pre code {
+    font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    font-weight: normal;
+    color: #c9d1d9;
+    background: none;
+    padding: 0;
+}
+
+.content code {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    color: #4a148c;
+    font-size: 0.9em;
+    background-color: #f0edcf;
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+}
+
 hr {
     border: none;
     margin: 2rem 0;

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fucking IPv6 — Андрей Синицын</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <!-- Yandex.Metrika counter --> <script type="text/javascript" > (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)}; m[i].l=1*new Date(); for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }} k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)}) (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym"); ym(94770111, "init", { clickmap:true, trackLinks:true, accurateTrackBounce:true }); </script><!-- /Yandex.Metrika counter -->
+</head>
+<body>
+    <noscript><div><img src="https://mc.yandex.ru/watch/94770111" style="position:absolute; left:-9999px;" alt=""></div></noscript>
+    <h1><a href="/">Персональная страница Андрея Синицына</a></h1>
+
+    <nav>
+        <a href="/intro.html">Intro</a>
+        <a class="blink-link" href="/services.html"><span style="--i:0">Ч</span><span style="--i:1">е</span><span style="--i:2">м</span> <span style="--i:3">я</span> <span style="--i:4">м</span><span style="--i:5">о</span><span style="--i:6">г</span><span style="--i:7">у</span> <span style="--i:8">п</span><span style="--i:9">о</span><span style="--i:10">м</span><span style="--i:11">о</span><span style="--i:12">ч</span><span style="--i:13">ь</span><span style="--i:14">?</span></a>
+        <a href="/projects.html">Проекты</a>
+        <a href="/freckles.html">Веснушки</a>
+        <a href="/contacts.html">Контакты</a>
+    </nav>
+
+    <div class="content">
+        <h2>История одного дебага</h2>
+
+        <p>Прикольный пятничный дебаг сейчас случился</p>
+
+<p>Для тележного прокси я юзаю свой <a href="https://github.com/boombick/ssh-manager">ssh-manager</a> и он же вкручен в firefox, чтобы глобально vpn в системе включен не был, но всегда был браузер, который ходит через туннель</p>
+
+<p>И вот, внезапно, браузер отваливается с таймаутом. Телега продолжает работать. Что, блять, за нафиг? Тыкаю курлом</p>
+<pre><code class="language-bash">curl --socks5-hostname localhost:1080 ifconfig.me</code></pre>
+<p>Нифига, висит жестко. Обрываю по ^C, пингую.. Пинги уходят в молоко. Ну, видимо, надо писать в саппорт, но телега-то работает...</p>
+
+<p>Переключаю менеджера на другой сервер, все работает супер. Значит проблема и правда в конкретном сервере, а не в РКН, который нащупал мой ssh (такое предположение тоже было)</p>
+
+<p>Иду на сервер по ssh, заходит без проблем. Пробую курлом там, все работает идеально. Значит проблема где-то между моим исходящим интерфейсом и его входящим. Но где?</p>
+
+<p>Возвращаюсь в консоль и вижу, что курл, который я там забыл, внезапно отработал. Надо посмотреть подробности, запускаю с verbose</p>
+    <pre><code class="language-bash">andreysinitsyn@eva ~/work> curl -v --socks5-hostname localhost:1080 ifconfig.so
+* Host localhost:1080 was resolved.
+* IPv6: ::1
+* IPv4: 127.0.0.1
+*   Trying [::1]:1080...
+* connect to ::1 port 1080 from ::1 port 51318 failed: Connection refused
+*   Trying 127.0.0.1:1080...
+* Connected to localhost (127.0.0.1) port 1080
+* SOCKS5 connect to ifconfig.so:80 (remotely resolved)
+!!!! ВОТ ЗДЕСЬ ВИСИМ ОЧЕНЬ ДОЛГО !!!!
+* SOCKS5 request granted.
+* Connected to localhost (127.0.0.1) port 1080
+> GET / HTTP/1.1
+> Host: ifconfig.so
+> User-Agent: curl/8.7.1
+> Accept: */*
+>
+* Request completely sent off
+< HTTP/1.1 200 OK
+< Server: nginx
+< Date: Fri, 26 Jun 2026 11:48:29 GMT
+< Content-Type: text/plain
+< Content-Length: 13
+< Connection: keep-alive
+<
+* Connection #0 to host localhost left intact
+!!!! А вот здесь я таки получаю айпишник своего удаленного сервера !!!!
+</code></pre>
+    
+    <p>А у курла нет таймаута на http-запрос, если его явно не воткнуть... Значит запрос проходит, но с ебически большим таймаутом. С каким? Запускаю курл под таймом
+
+<pre><code class="language-bash">andreysinitsyn@eva ~/work> time curl --socks5-hostname 127.0.0.1:1080 ifconfig.me
+!!!! Здесь IP моего сервера !!!!
+________________________________________________________
+Executed in  134.69 secs      fish           external
+   usr time   11.64 millis    0.32 millis   11.32 millis
+   sys time   16.48 millis    1.62 millis   14.86 millis
+</code></pre>
+<p>Ага, блять! 134 секунды.. какая интересная цифра😊 Здесь не читайте дальше и попробуйте угадать, в чем было дело</p>
+<hr>
+<p>134 секунды — это дефолтный таймаут TCP-коннекта в Linux: <code>tcp_syn_retries = 6</code>, экспоненциальный бэкофф 1+2+4+8+16+32 плюс финальные ~64с ожидания, это примерно 127 секунд до отказа. Когда что-то висит ровно столько и потом вдруг работает, то это почти всегда проеб по одному из address family с фоллбэком на другой</p>
+
+<p>Курл нормально отрабатывает на сервере, но не работает с клиента. Проблема в address family, смотрю <code>ifconfig</code> и вижу настроенный ipv6. По дефолтным приоритетам ipv6-адреса используются первыми. Давайте проверим. Сначала получим ipv4-адрес и дернем его явно</p>
+<pre><code class="language-bash">andreysinitsyn@eva ~/work> dig +short A ifconfig.me
+34.160.111.145
+andreysinitsyn@eva ~/work> curl --socks5-hostname 127.0.0.1:1080 http://34.160.111.145
+fault filter abort
+</code></pre>
+<p>Какой такой аборт? А, ну да, ну да. Такое отдает гугловский edge, если ему не передать правильный хост. Добавим заголовочек</p>
+<pre><code class="language-bash">andreysinitsyn@eva ~/work> curl --socks5-hostname 127.0.0.1:1080 -H "Host: ifconfig.me" http://34.160.111.145
+!!!! И тут уже получаю правильный айпишник моего сервера !!!!
+</code></pre>
+
+<p>Огонь! Причину нашли, теперь надо починить. Можно полностью сломать логику ipv6-адресации на хосте 
+    <pre><code class="language-bash">sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+    </code></pre>
+    <p>Но тогда сломается резолв, например, <code>localhost</code> в <code>::1</code><br>
+    Сделаем гуманнее: просто меняем приоритет в <code>/etc/gai.conf</code>, добавлением туда вот такой строчки
+<pre><code class="language-bash">precedence ::ffff:0:0/96  100</code></pre>
+Проверяем
+<pre><code class="language-bash">root@golden-almandite23248:~# getent ahosts ifconfig.me
+34.160.111.145  STREAM ifconfig.me
+34.160.111.145  DGRAM
+34.160.111.145  RAW
+2600:1901:0:b2bd:: STREAM
+2600:1901:0:b2bd:: DGRAM
+2600:1901:0:b2bd:: RAW
+</code></pre>
+<p>Да, it works!!! IPv4 резолвятся в приоритете. Рестарчу sshd, чтобы все текущие коннекты обновились и все работает</p>
+
+<p>И все это было сделано без помощи LLM, ручки-то помнят. Догадался по цифре в 134 секунды в time</p>
+
+<p>PS Почему работала телега? А ей не надо вообще резолвить хостнеймы, у нее там жестко зашиты ipv4-адреса</p>
+
+<p></p>PPS Пинги не проходили, потому что провайдер фильтрует ICMP🤷‍♂️</p>
+
+        
+    </div>
+
+    <footer>&copy; Андрей Синицын, 2026</footer>
+    <script src="/script.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</body>
+</html>
